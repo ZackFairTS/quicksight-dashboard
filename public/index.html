@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QuickSight Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .header { background-color: #f5f5f5; padding: 20px; margin-bottom: 20px; }
+        .dashboard-container { 
+            width: 100%; 
+            height: 600px; 
+            border: 2px solid #ddd; 
+            border-radius: 8px;
+            position: relative;
+        }
+        .dashboard-iframe { 
+            width: 100%; 
+            height: 100%; 
+            border: none; 
+            border-radius: 6px;
+        }
+        .button { 
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin-right: 10px;
+        }
+        .loading { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100%; 
+            color: #666; 
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>QuickSight Dashboard</h1>
+        <button class="button" onclick="loadDashboard()">Load Dashboard</button>
+        <button class="button" onclick="refreshDashboard()">Refresh</button>
+        <button class="button" onclick="debugDomain()" style="background-color: #2196F3;">Debug Domain</button>
+        <span id="domain-info" style="margin-left: 20px; color: #666; font-size: 12px;"></span>
+    </div>
+    
+    <div class="dashboard-container">
+        <div id="loading" class="loading">Click "Load Dashboard" to generate and display the dashboard</div>
+        <iframe id="dashboard-iframe" class="dashboard-iframe" style="display: none;"></iframe>
+    </div>
+
+    <script>
+        // Display current domain info
+        document.getElementById('domain-info').textContent = `Current domain: ${window.location.origin}`;
+        
+        async function loadDashboard() {
+            const loading = document.getElementById('loading');
+            const iframe = document.getElementById('dashboard-iframe');
+            
+            loading.innerHTML = 'Generating embed URL...';
+            loading.style.display = 'flex';
+            iframe.style.display = 'none';
+            
+            try {
+                const response = await fetch('/generate-embed-url', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    }
+                });
+                
+                const data = await response.json();
+                console.log('Response:', data);
+                
+                if (data.embedUrl) {
+                    loading.innerHTML = 'Loading dashboard...';
+                    iframe.src = data.embedUrl;
+                    
+                    iframe.onload = function() {
+                        console.log('iframe loaded successfully');
+                        iframe.style.display = 'block';
+                        loading.style.display = 'none';
+                    };
+                    
+                    iframe.onerror = function() {
+                        console.log('iframe error');
+                        loading.innerHTML = 'Error loading dashboard. CORS restrictions may still apply.';
+                    };
+                    
+                    // Timeout fallback
+                    setTimeout(() => {
+                        if (loading.style.display !== 'none') {
+                            loading.innerHTML = 'Dashboard may be loading. If nothing appears, CORS restrictions apply.';
+                        }
+                    }, 5000);
+                    
+                } else {
+                    loading.innerHTML = 'Error: ' + (data.error || 'Failed to generate URL');
+                }
+            } catch (error) {
+                loading.innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        async function debugDomain() {
+            try {
+                const response = await fetch('/debug-domain');
+                const data = await response.json();
+                console.log('Domain debug info:', data);
+                alert(`Domain Info:\nHost: ${data.host}\nProtocol: ${data.protocol}\nFull URL: ${data.fullUrl}\nOrigin: ${data.origin}`);
+            } catch (error) {
+                console.error('Debug error:', error);
+            }
+        }
+        
+        function refreshDashboard() {
+            loadDashboard();
+        }
+    </script>
+</body>
+</html>

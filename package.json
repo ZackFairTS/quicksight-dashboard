@@ -1,0 +1,15 @@
+{
+  "name": "quicksight-dashboard",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "aws-sdk": "^2.1490.0",
+    "amazon-quicksight-embedding-sdk": "^2.6.0",
+    "http-proxy-middleware": "^2.0.6",
+    "axios": "^1.6.0"
+  }
+}
