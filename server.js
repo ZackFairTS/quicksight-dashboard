@@ -2,6 +2,8 @@ const express = require('express');
 const https = require('https');
 const fs = require('fs');
 const AWS = require('aws-sdk');
+require('dotenv').config();
+
 const app = express();
 const port = 3000;
 
@@ -59,13 +61,13 @@ app.post('/generate-embed-url', async (req, res) => {
         console.log('Allowed domains:', uniqueDomains);
         
         const params = {
-            AwsAccountId: '113343415039',
+            AwsAccountId: process.env.AWS_ACCOUNT_ID || 'YOUR_AWS_ACCOUNT_ID',
             ExperienceConfiguration: {
                 QuickSightConsole: {
                     InitialPath: '/start'
                 }
             },
-            UserArn: 'arn:aws:quicksight:us-east-1:113343415039:user/default/tangaws-global',
+            UserArn: process.env.QUICKSIGHT_USER_ARN || 'arn:aws:quicksight:us-east-1:YOUR_AWS_ACCOUNT_ID:user/default/YOUR_USERNAME',
             AllowedDomains: uniqueDomains,
             SessionLifetimeInMinutes: 100
         };
