@@ -1,6 +1,6 @@
 # QuickSight Dashboard Web Service
 
-A Node.js web service for embedding AWS QuickSight dashboards with dynamic URL generation and HTTPS support.
+A Node.js web service for embedding AWS QuickSight dashboards and QuickChat with dynamic URL generation and HTTPS support.
 
 ## Setup
 
@@ -19,11 +19,13 @@ aws configure
    - Update the following values in `.env`:
      - `AWS_ACCOUNT_ID`: Your AWS account ID (12-digit number)
      - `QUICKSIGHT_USER_ARN`: Your QuickSight user ARN
+     - `QUICKCHAT_AGENT_ARN`: Your QuickChat agent ARN (optional)
    
    Example:
    ```
    AWS_ACCOUNT_ID=123456789012
    QUICKSIGHT_USER_ARN=arn:aws:quicksight:us-east-1:123456789012:user/default/your-username
+   QUICKCHAT_AGENT_ARN=arn:aws:quicksight:us-east-1:123456789012:agent/your-agent-id
    ```
 
 4. **Generate SSL certificates for HTTPS:**
@@ -37,8 +39,20 @@ npm start
 ```
 
 6. **Access the application:**
-   - Local: https://localhost:3000
-   - Public: https://YOUR_PUBLIC_IP:3000
+   - Main interface: https://localhost:3000 or https://YOUR_PUBLIC_IP:3000
+   - QuickChat only: https://localhost:3000/quickchat.html
+
+## Pages
+
+### Main Interface (`index.html`)
+- Tabbed interface with Dashboard and QuickChat views
+- Integrated debugging tools
+- Responsive design
+
+### QuickChat Interface (`quickchat.html`)
+- Dedicated QuickChat embedding page
+- Simplified interface focused on chat functionality
+- Configurable agent ARN support
 
 ## Configuration
 
@@ -48,12 +62,14 @@ npm start
 |----------|-------------|---------|
 | `AWS_ACCOUNT_ID` | Your AWS account ID | `123456789012` |
 | `QUICKSIGHT_USER_ARN` | QuickSight user ARN | `arn:aws:quicksight:us-east-1:123456789012:user/default/username` |
+| `QUICKCHAT_AGENT_ARN` | QuickChat agent ARN (optional) | `arn:aws:quicksight:us-east-1:123456789012:agent/agent-id` |
 
 ### AWS Requirements
 
 - AWS credentials with QuickSight permissions
 - QuickSight user registered in your account
 - Appropriate IAM permissions for QuickSight embedding
+- QuickChat agent configured (for chat functionality)
 
 ### QuickSight User ARN Format
 
@@ -67,13 +83,29 @@ arn:aws:quicksight:REGION:ACCOUNT_ID:user/NAMESPACE/USERNAME
 - `NAMESPACE`: Usually 'default'
 - `USERNAME`: Your QuickSight username
 
+### QuickChat Agent ARN Format
+
+The QuickChat Agent ARN follows this format:
+```
+arn:aws:quicksight:REGION:ACCOUNT_ID:agent/AGENT_ID
+```
+
 ## Features
 
-- Dynamic QuickSight embed URL generation
-- HTTPS support with self-signed certificates
-- Automatic domain configuration for CORS
-- Debug tools for troubleshooting
-- Responsive web interface
+- **Dashboard Embedding**: Dynamic QuickSight console embed URL generation
+- **QuickChat Integration**: AI-powered chat interface with configurable agents
+- **HTTPS Support**: Self-signed certificates for secure connections
+- **CORS Configuration**: Automatic domain configuration for cross-origin requests
+- **Debug Tools**: Built-in troubleshooting and domain debugging
+- **Responsive Interface**: Works on desktop and mobile devices
+- **Dual Access**: Main tabbed interface and dedicated QuickChat page
+
+## API Endpoints
+
+- `POST /generate-embed-url`: Generate QuickSight console embed URL
+- `POST /generate-quickchat-url`: Generate QuickChat embed URL
+- `GET /debug-domain`: Debug domain and CORS configuration
+- `GET /health`: Health check endpoint
 
 ## Security Notes
 
@@ -81,17 +113,20 @@ arn:aws:quicksight:REGION:ACCOUNT_ID:user/NAMESPACE/USERNAME
 - Use environment variables for sensitive information
 - Generate new SSL certificates for production use
 - Ensure proper AWS IAM permissions are configured
+- Agent ARNs are configured in frontend for security
 
 ## Troubleshooting
 
 1. **CORS Issues**: Ensure your domain is properly configured in AllowedDomains
 2. **Authentication**: Verify AWS credentials and QuickSight user permissions
 3. **SSL Certificates**: Generate certificates with correct domain/IP information
+4. **QuickChat Issues**: Verify agent ARN is correct and agent is active
 
 ## Development
 
 The application uses:
 - Express.js for the web server
-- AWS SDK for QuickSight integration
+- AWS SDK v3 for QuickSight integration
+- QuickSight Embedding SDK v2.11.0
 - HTTPS with self-signed certificates
 - Environment variables for configuration
