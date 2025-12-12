@@ -1,7 +1,7 @@
 const express = require('express');
 const https = require('https');
 const fs = require('fs');
-const AWS = require('aws-sdk');
+const { QuickSightClient, GenerateEmbedUrlForRegisteredUserCommand } = require('@aws-sdk/client-quicksight');
 require('dotenv').config();
 
 const app = express();
@@ -10,7 +10,7 @@ const port = 3000;
 app.use(express.static('public'));
 app.use(express.json());
 
-const quicksight = new AWS.QuickSight({
+const quicksight = new QuickSightClient({
     region: 'us-east-1'
 });
 
@@ -72,11 +72,54 @@ app.post('/generate-embed-url', async (req, res) => {
             SessionLifetimeInMinutes: 100
         };
 
-        const result = await quicksight.generateEmbedUrlForRegisteredUser(params).promise();
+        const command = new GenerateEmbedUrlForRegisteredUserCommand(params);
+        const result = await quicksight.send(command);
         console.log('Generated URL:', result.EmbedUrl);
         res.json({ embedUrl: result.EmbedUrl });
     } catch (error) {
         console.error('Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/generate-quickchat-url', async (req, res) => {
+    try {
+        const host = req.get('host') || 'localhost:3000';
+        const protocol = req.secure ? 'https' : 'http';
+        
+        let allowedDomains = [];
+        
+        if (host.includes('localhost') || host.includes('127.0.0.1')) {
+            allowedDomains = [
+                'http://localhost:3000',
+                'https://localhost:3000'
+            ];
+        } else {
+            allowedDomains = [
+                `https://${host}`,
+                'https://localhost:3000'
+            ];
+        }
+        
+        const uniqueDomains = [...new Set(allowedDomains)].slice(0, 3);
+        console.log('QuickChat allowed domains:', uniqueDomains);
+        
+        const params = {
+            AwsAccountId: process.env.AWS_ACCOUNT_ID,
+            UserArn: process.env.QUICKSIGHT_USER_ARN,
+            ExperienceConfiguration: {
+                QuickChat: {}
+            },
+            AllowedDomains: uniqueDomains,
+            SessionLifetimeInMinutes: 100
+        };
+
+        const command = new GenerateEmbedUrlForRegisteredUserCommand(params);
+        const result = await quicksight.send(command);
+        console.log('Generated QuickChat URL:', result.EmbedUrl);
+        res.json({ embedUrl: result.EmbedUrl });
+    } catch (error) {
+        console.error('QuickChat Error:', error);
         res.status(500).json({ error: error.message });
     }
 });

@@ -2,9 +2,22 @@
 <html>
 <head>
     <title>QuickSight Dashboard</title>
+    <script src="https://unpkg.com/amazon-quicksight-embedding-sdk@2.11.0/dist/quicksight-embedding-js-sdk.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
         .header { background-color: #f5f5f5; padding: 20px; margin-bottom: 20px; }
+        .tabs { display: flex; margin-bottom: 20px; }
+        .tab { 
+            padding: 10px 20px; 
+            background-color: #ddd; 
+            border: none; 
+            cursor: pointer; 
+            margin-right: 5px;
+            border-radius: 4px 4px 0 0;
+        }
+        .tab.active { background-color: #4CAF50; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         .dashboard-container { 
             width: 100%; 
             height: 600px; 
@@ -34,25 +47,55 @@
             height: 100%; 
             color: #666; 
         }
+        #experience-container {
+            width: 100%;
+            height: 100%;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>QuickSight Dashboard</h1>
-        <button class="button" onclick="loadDashboard()">Load Dashboard</button>
-        <button class="button" onclick="refreshDashboard()">Refresh</button>
-        <button class="button" onclick="debugDomain()" style="background-color: #2196F3;">Debug Domain</button>
-        <span id="domain-info" style="margin-left: 20px; color: #666; font-size: 12px;"></span>
+        <span id="domain-info" style="color: #666; font-size: 12px;"></span>
     </div>
     
-    <div class="dashboard-container">
-        <div id="loading" class="loading">Click "Load Dashboard" to generate and display the dashboard</div>
-        <iframe id="dashboard-iframe" class="dashboard-iframe" style="display: none;"></iframe>
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('dashboard')">Dashboard</button>
+        <button class="tab" onclick="showTab('chat')">Quick Chat</button>
+    </div>
+    
+    <div id="dashboard-tab" class="tab-content active">
+        <div style="margin-bottom: 20px;">
+            <button class="button" onclick="loadDashboard()">Load Dashboard</button>
+            <button class="button" onclick="refreshDashboard()">Refresh</button>
+            <button class="button" onclick="debugDomain()" style="background-color: #2196F3;">Debug Domain</button>
+        </div>
+        
+        <div class="dashboard-container">
+            <div id="loading" class="loading">Click "Load Dashboard" to generate and display the dashboard</div>
+            <iframe id="dashboard-iframe" class="dashboard-iframe" style="display: none;"></iframe>
+        </div>
+    </div>
+    
+    <div id="chat-tab" class="tab-content">
+        <div style="margin-bottom: 20px;">
+            <button class="button" onclick="loadQuickChat()">Load Quick Chat</button>
+        </div>
+        <div id="experience-container"></div>
     </div>
 
     <script>
-        // Display current domain info
         document.getElementById('domain-info').textContent = `Current domain: ${window.location.origin}`;
+        
+        function showTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName + '-tab').classList.add('active');
+        }
         
         async function loadDashboard() {
             const loading = document.getElementById('loading');
@@ -89,7 +132,6 @@
                         loading.innerHTML = 'Error loading dashboard. CORS restrictions may still apply.';
                     };
                     
-                    // Timeout fallback
                     setTimeout(() => {
                         if (loading.style.display !== 'none') {
                             loading.innerHTML = 'Dashboard may be loading. If nothing appears, CORS restrictions apply.';
@@ -103,6 +145,71 @@
                 loading.innerHTML = 'Error: ' + error.message;
             }
         }
+        
+        async function loadQuickChat() {
+            try {
+                const response = await fetch('/generate-quickchat-url', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.embedUrl) {
+                    await embedQuickChat(data.embedUrl);
+                } else {
+                    document.getElementById('experience-container').innerHTML = 'Error: ' + (data.error || 'Failed to generate URL');
+                }
+            } catch (error) {
+                document.getElementById('experience-container').innerHTML = 'Error: ' + error.message;
+            }
+        }
+        
+        const embedQuickChat = async(embedUrl) => {    
+            const { createEmbeddingContext } = QuickSightEmbedding;
+
+            const embeddingContext = await createEmbeddingContext({
+                onChange: (changeEvent, metadata) => {
+                    console.log('Context received a change', changeEvent, metadata);
+                },
+            });
+
+            const frameOptions = {
+                url: embedUrl,
+                container: '#experience-container',
+                height: "600px",
+                width: "100%",
+                onChange: (changeEvent, metadata) => {
+                    switch (changeEvent.eventName) {
+                        case 'FRAME_MOUNTED': {
+                            console.log("Quick Chat frame mounted.");
+                            break;
+                        }
+                        case 'FRAME_LOADED': {
+                            console.log("Quick Chat frame loaded.");
+                            break;
+                        }
+                    }
+                },
+            };
+
+            const contentOptions = {
+                fixedAgentArn: 'arn:aws:quicksight:us-east-1:123456789012:agent/your-agent-id',
+                onMessage: async (messageEvent, experienceMetadata) => {
+                    switch (messageEvent.eventName) {
+                        case 'CONTENT_LOADED': {
+                            console.log("Quick Chat displayed");
+                            break;
+                        }
+                    }
+                }
+            };
+            
+            await embeddingContext.embedQuickChat(frameOptions, contentOptions);
+        };
         
         async function debugDomain() {
             try {

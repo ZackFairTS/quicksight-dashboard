@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QuickSight QuickChat Embedding</title>
+    <script src="https://unpkg.com/amazon-quicksight-embedding-sdk@2.11.0/dist/quicksight-embedding-js-sdk.min.js"></script>
+</head>
+<body>
+    <h1>QuickSight QuickChat</h1>
+    <div id="experience-container"></div>
+    
+    <script>
+        const embedQuickChat = async () => {
+            try {
+                const response = await fetch('/generate-quickchat-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                const { createEmbeddingContext } = QuickSightEmbedding;
+                
+                const embeddingContext = await createEmbeddingContext();
+                
+                const frameOptions = {
+                    url: data.embedUrl,
+                    container: '#experience-container',
+                    height: "700px",
+                    width: "1000px"
+                };
+                
+                const contentOptions = {
+                    fixedAgentArn: 'arn:aws:quicksight:us-east-1:123456789012:agent/your-agent-id'
+                };
+                
+                await embeddingContext.embedQuickChat(frameOptions, contentOptions);
+            } catch (error) {
+                console.error('Error embedding QuickChat:', error);
+                document.getElementById('experience-container').innerHTML = 
+                    '<p>Error loading QuickChat. Please check console for details.</p>';
+            }
+        };
+        
+        embedQuickChat();
+    </script>
+</body>
+</html>
