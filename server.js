@@ -82,6 +82,12 @@ app.post('/generate-embed-url', async (req, res) => {
     }
 });
 
+app.get('/agent-config', (req, res) => {
+    const agentArns = process.env.QUICKCHAT_AGENT_ARNS ? 
+        process.env.QUICKCHAT_AGENT_ARNS.split(',') : [];
+    res.json({ agentArns });
+});
+
 app.post('/generate-quickchat-url', async (req, res) => {
     try {
         const host = req.get('host') || 'localhost:3000';

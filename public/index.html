@@ -31,6 +31,48 @@
             border: none; 
             border-radius: 6px;
         }
+        .combined-container {
+            display: flex;
+            gap: 10px;
+            height: 600px;
+            position: relative;
+        }
+        .combined-left, .combined-right {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            position: relative;
+            min-width: 200px;
+        }
+        .combined-left {
+            flex: 1;
+        }
+        .combined-right {
+            flex: 1;
+        }
+        .resizer {
+            width: 10px;
+            background: #ddd;
+            cursor: col-resize;
+            border-radius: 4px;
+        }
+        .resizer:hover {
+            background: #bbb;
+        }
+        .combined-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            border-radius: 6px;
+        }
+        .agent-selector {
+            margin-bottom: 10px;
+        }
+        .agent-selector select {
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            margin-left: 10px;
+        }
         .button { 
             background-color: #4CAF50; 
             color: white; 
@@ -64,6 +106,7 @@
     <div class="tabs">
         <button class="tab active" onclick="showTab('dashboard')">Dashboard</button>
         <button class="tab" onclick="showTab('chat')">Quick Chat</button>
+        <button class="tab" onclick="showTab('combined')">Combined</button>
     </div>
     
     <div id="dashboard-tab" class="tab-content active">
@@ -84,6 +127,27 @@
             <button class="button" onclick="loadQuickChat()">Load Quick Chat</button>
         </div>
         <div id="experience-container"></div>
+    </div>
+
+    <div id="combined-tab" class="tab-content">
+        <div style="margin-bottom: 20px;">
+            <button class="button" onclick="loadCombinedDashboard()">Load Dashboard</button>
+            <button class="button" onclick="loadCombinedChat()">Load Chat</button>
+            <div class="agent-selector">
+                Agent: <select id="agent-select"></select>
+            </div>
+        </div>
+        <div class="combined-container" id="combined-container">
+            <div class="combined-left" id="combined-left">
+                <div id="combined-dashboard-loading" class="loading">Click "Load Dashboard" to display</div>
+                <iframe id="combined-dashboard-iframe" class="combined-iframe" style="display: none;"></iframe>
+            </div>
+            <div class="resizer" id="resizer"></div>
+            <div class="combined-right" id="combined-right">
+                <div id="combined-chat-loading" class="loading">Click "Load Chat" to display</div>
+                <div id="combined-experience-container" style="width: 100%; height: 100%; display: none;"></div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -196,8 +260,12 @@
                 },
             };
 
+            // Fetch agent configuration from server
+            const agentResponse = await fetch('/agent-config');
+            const agentConfig = await agentResponse.json();
+
             const contentOptions = {
-                fixedAgentArn: 'arn:aws:quicksight:us-east-1:123456789012:agent/your-agent-id',
+                fixedAgentArn: agentConfig.agentArns[0] || '', // Use first agent as default
                 onMessage: async (messageEvent, experienceMetadata) => {
                     switch (messageEvent.eventName) {
                         case 'CONTENT_LOADED': {
@@ -221,6 +289,112 @@
                 console.error('Debug error:', error);
             }
         }
+        
+        async function loadCombinedDashboard() {
+            try {
+                const response = await fetch('/generate-embed-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                document.getElementById('combined-dashboard-loading').style.display = 'none';
+                document.getElementById('combined-dashboard-iframe').style.display = 'block';
+                document.getElementById('combined-dashboard-iframe').src = data.embedUrl;
+            } catch (error) {
+                console.error('Error loading combined dashboard:', error);
+            }
+        }
+        
+        async function loadCombinedChat() {
+            try {
+                const response = await fetch('/generate-quickchat-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+                
+                const embeddingContext = await QuickSightEmbedding.createEmbeddingContext({
+                    onChange: (changeEvent, metadata) => {
+                        console.log('Combined chat change:', changeEvent.eventName);
+                    },
+                });
+                
+                const frameOptions = {
+                    url: data.embedUrl,
+                    container: '#combined-experience-container',
+                    height: '100%',
+                    width: '100%'
+                };
+                
+                const selectedAgent = document.getElementById('agent-select').value;
+                
+                const contentOptions = {
+                    fixedAgentArn: selectedAgent
+                };
+                
+                document.getElementById('combined-chat-loading').style.display = 'none';
+                document.getElementById('combined-experience-container').style.display = 'block';
+                
+                await embeddingContext.embedQuickChat(frameOptions, contentOptions);
+            } catch (error) {
+                console.error('Error loading combined chat:', error);
+            }
+        }
+        
+        // Initialize agent selector and resizer
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Load agent options
+            try {
+                const response = await fetch('/agent-config');
+                const config = await response.json();
+                const select = document.getElementById('agent-select');
+                
+                config.agentArns.forEach(arn => {
+                    const option = document.createElement('option');
+                    option.value = arn;
+                    option.textContent = arn.split('/').pop();
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading agents:', error);
+            }
+            
+            // Setup resizer
+            const resizer = document.getElementById('resizer');
+            const leftPanel = document.getElementById('combined-left');
+            const rightPanel = document.getElementById('combined-right');
+            const container = document.getElementById('combined-container');
+            
+            let isResizing = false;
+            
+            resizer.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', stopResize);
+            });
+            
+            function handleMouseMove(e) {
+                if (!isResizing) return;
+                
+                const containerRect = container.getBoundingClientRect();
+                const leftWidth = e.clientX - containerRect.left;
+                const totalWidth = containerRect.width - 10; // minus resizer width
+                const leftPercent = (leftWidth / totalWidth) * 100;
+                const rightPercent = 100 - leftPercent;
+                
+                if (leftPercent > 20 && rightPercent > 20) {
+                    leftPanel.style.flex = `0 0 ${leftPercent}%`;
+                    rightPanel.style.flex = `0 0 ${rightPercent}%`;
+                }
+            }
+            
+            function stopResize() {
+                isResizing = false;
+                document.removeEventListener('mousemove', handleMouseMove);
+                document.removeEventListener('mouseup', stopResize);
+            }
+        });
         
         function refreshDashboard() {
             loadDashboard();

@@ -28,8 +28,12 @@
                     width: "1000px"
                 };
                 
+                // Fetch agent configuration from server
+                const agentResponse = await fetch('/agent-config');
+                const agentConfig = await agentResponse.json();
+                
                 const contentOptions = {
-                    fixedAgentArn: 'arn:aws:quicksight:us-east-1:123456789012:agent/your-agent-id'
+                    fixedAgentArn: agentConfig.agentArn
                 };
                 
                 await embeddingContext.embedQuickChat(frameOptions, contentOptions);
